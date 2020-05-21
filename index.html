@@ -13,19 +13,6 @@
                 <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="$BASE_URL$/status.html">Status</a>
-                    </li>
-                    <li class="nav-item active">
-                        <a class="nav-link" href="$BASE_URL$/matches.html">Matches <span class="sr-only">(current)</span></a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="$BASE_URL$/about.html">About</a>
-                    </li>
-                    </ul>
-                </div>
             </nav>
             <div style="text-align: center;">
                 <button style="margin: 0 auto;" class="btn btn-light" type="button" data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
@@ -43,20 +30,7 @@
                                     <option value="No genomes found">
                                 </datalist>
                             </div>
-                            
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text" id="basic-addon1">Run Name</span>
-                                </div>
-                                <input id="run" name="run" type="text" class="form-control" placeholder="Run Name" aria-label="Run Name" aria-describedby="basic-addon1">
-                            </div>
-                
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text" id="basic-addon1">Sequence</span>
-                                </div>
-                                <input id="seq" name="seq" type="text" class="form-control" placeholder="Sequence" aria-label="Sequence" aria-describedby="basic-addon1">
-                            </div>
+                        
                             <div class="input-group mb-3">
                                 <div class="input-group-prepend">
                                     <span class="input-group-text" id="basic-addon1">Min Position</span>
@@ -84,15 +58,45 @@
         <div id="results">
 
         </div>
+
+         <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+        <script src="https://www.gstatic.com/firebasejs/7.14.4/firebase-app.js"></script>
+
+        <!-- If you enabled Analytics in your project, add the Firebase SDK for Analytics -->
+        <script src="https://www.gstatic.com/firebasejs/7.14.4/firebase-analytics.js"></script>
+
+        <!-- Add Firebase products that you want to use -->
+        <script src="https://www.gstatic.com/firebasejs/7.14.4/firebase-auth.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/7.14.4/firebase-firestore.js"></script>
         <script>
+            var firebaseConfig = {
+                apiKey: "AIzaSyB5t_KPIagVnFh1kTeYOWmwOFtL2Gk1FyA",
+                authDomain: "lasso-peptides.firebaseapp.com",
+                databaseURL: "https://lasso-peptides.firebaseio.com",
+                projectId: "lasso-peptides",
+                storageBucket: "lasso-peptides.appspot.com",
+                messagingSenderId: "175389116206",
+                appId: "1:175389116206:web:038935cd7e647a30839cbf"
+            };
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+
+            db = firebase.firestore();
+
+            
+
             $(document).ready(function() {
-                $.get('$BASE_URL$/genomeList', {}, function(data) {
-                    console.log("genomes: " + data);
-                    genomeList = JSON.parse(data)
+                db.collection("genomes").get().then((querySnapshot) => {
+                    genomeList = [];
+                    querySnapshot.forEach((doc) => {
+                        console.log(`${doc.id}`);
+                        genomeList.push(doc.id);
+                    });
+                    console.log("genomes: " + JSON.stringify(genomeList));
                     $("#genomes").empty();
                     for(var i = 0; i < genomeList.length; i++) {
                         $("#genomes").append(`
-                            <option value="` + genomeList[i][0] + `">
+                            <option value="` + genomeList[i] + `">
                         `);
                     }
                 });
@@ -112,37 +116,47 @@
                     </div>
                 </div>
                 `);
-                $.get('$BASE_URL$/getpeptides', { 
-                    genome: $("#gen").val(),
-                    sequence: $("#seq").val(),
-                    runName: $("#run").val(),
-                    searchPattern: $("#pat").val(),
-                    minRange: $("#min").val(),
-                    maxRange: $("#max").val(),
-                    maxNum: $('#num').val()
-                }, function(data) {
-                    console.log(data);
-                    peptides = data;
-                    peptides.sort(function(a, b) {
-                        return a["rank"] - b["rank"]
-                    });
-                    $("#results").empty();
+                // parse inputs
+                numQ = parseInt($('#num').val());
+                if (!numQ) {
+                    numQ = 5;
+                }
+                min = parseInt($('#min').val());
+                if (!min) {
+                    min = 0;
+                }
+                max = parseInt($('#max').val());
+                if (!max) {
+                    max = 10000000000;
+                }
+                
 
-                    for(var i = 0; i < peptides.length && peptides[i]["rank"]; i++) {
+                db.collection("peptides").where("genome", "==", $("#gen").val()).
+                // where("start", ">=", min).
+                // where("start", "<=", max).
+                orderBy("rank", "desc").limit(numQ)
+                .get().then(function(querySnapshot) {
+                    $("#results").empty();
+                    i = 0;
+                    querySnapshot.forEach(function(doc) {
+                        data = doc.data();
+                        console.log(data);
+                        i++;
+
                         $("#results").append(`
                         <div class="card" style="max-width: 80%; margin: 0 auto;">
-                            <div class="card-header">` + peptides[i].sequence + `</div>
+                            <div class="card-header">` + data.sequence + `</div>
                             <div class="card-body">
-                                <a href="https://www.ncbi.nlm.nih.gov/nuccore/` + peptides[i].index + `?report=genbank&from=` + peptides[i].start + `&to=` + peptides[i].end + `"class="card-title">` + peptides[i].index + " (" + peptides[i].start + ".." + peptides[i].end +`)</a>
+                                <a href="https://www.ncbi.nlm.nih.gov/nuccore/` + data.accession + `?report=genbank&from=` + data.start + `&to=` + data.end + `"class="card-title">` + data.accession + " (" + data.start + ".." + data.end +`)</a>
                                 <p class="card-text">
-                                    Rank: ` + peptides[i].rank + `<br>
-                                    Genome: ` + peptides[i].genome + `<br>
-                                    Index: ` + peptides[i].index + `<br>
-                                    Range: ` + peptides[i].start + ' - ' + peptides[i].end +  `<br>
-                                    Reading Frame: ` + peptides[i].ORF + `
+                                    Rank: ` + data.rank + `<br>
+                                    Genome: ` + data.genome + `<br>
+                                    Index: ` + data.accession + `<br>
+                                    Range: ` + data.start + ' - ' + data.end +  `<br>
+                                    Reading Frame: ` + data.orf + `
                                 </p>
                                 <iframe id="theiframe" width="80%" style="margin: 0 auto;" 
-                                src="https://www.ncbi.nlm.nih.gov/projects/sviewer/embedded_iframe.html?iframe=theiframe&embedded=true&id=` + peptides[i].index + `&from=` + peptides[i].start + `&to=` + peptides[i].end + `" 
+                                src="https://www.ncbi.nlm.nih.gov/projects/sviewer/embedded_iframe.html?iframe=theiframe&embedded=true&id=` + data.accession + `&from=` + data.start + `&to=` + data.end + `" 
                                 onload="if(!window._SViFrame){_SViFrame=true;window.addEventListener('message',function(e){if(e.origin=='https://www.ncbi.nlm.nih.gov' &amp;&amp; !isNaN(e.data.h))document.getElementById(e.data.f).height=parseInt(e.data.h);});}" height="291">
                                     <p>Your browser does not support iframes.</p>
                                 </iframe>
@@ -151,7 +165,7 @@
                                 <button class="btn btn-info" type="button" data-toggle="collapse" data-target="#collapsable` + i + `" aria-expanded="false" aria-controls="#collapsable` + i + `">Details</button>
                                 <div class="collapse" id="collapsable` + i + `">
                                     <div id="plot` + i + `"></div>
-                                    <p style="font-family:'Courier New'">` + JSON.stringify(peptides[i]) + `</p>
+                                    <p style="font-family:'Courier New'">` + JSON.stringify(data) + `</p>
                                 </div>
                             </div>
                         </div>
@@ -159,7 +173,7 @@
                         `);
 
 
-                        var minRange = peptides[i].overallLength;
+                        var minRange = data.overallLength;
                         var maxRange = 0;
 
                         function updateRange(number) {
@@ -171,7 +185,7 @@
                             }
                         }
                         var sequence = {
-                            x: [0, peptides[i].overallLength],
+                            x: [0, data.overallLength],
                             y: [1, 1],
                             type: 'line',
                             name: "Sequence",
@@ -184,7 +198,7 @@
                         }
 
                         var Aprot = {
-                            x: [peptides[i].start, peptides[i].end],
+                            x: [data.start, data.end],
                             y: [3, 3],
                             type: 'line',
                             name: "A",
@@ -196,10 +210,11 @@
                                     color: 'rgb(46,125,50)'
                                 }
                         };
-                        updateRange(peptides[i].start);
-                        updateRange(peptides[i].end);
+                        updateRange(data.start);
+                        updateRange(data.end);
 
-                        closestProteins = JSON.parse(replaceAll(peptides[i].closestProtLists, "\'", "\""));
+                        closestProteins = JSON.parse(data.closestProtLists);
+                        closestProteins = JSON.parse(replaceAll(closestProteins, "\'", "\""));
 
                         protPlots = []
                         for(var j = 0; j < closestProteins.length; j++) {
@@ -248,7 +263,7 @@
                                 showlegend: false
                             }
                         );
-                    }
+                    });
                 });
             });
         </script>

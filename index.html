@@ -2,64 +2,33 @@
     <head>
         <title>Lasso Miner</title>
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-        <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
-        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+        <link
+            href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+            rel="stylesheet"
+            integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+            crossorigin="anonymous"
+        />
+        <script
+            src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+            integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+            crossorigin="anonymous"
+        ></script>
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-        <script type=”text/javascript” src=”http://www.ncbi.nlm.nih.gov/projects/sviewer/js/sviewer.js”></script>
+        <script type=”text/javascript”
+        src=”http://www.ncbi.nlm.nih.gov/projects/sviewer/js/sviewer.js”></script>
     </head>
     <body>
-            <nav class="navbar navbar-expand-lg navbar-light bg-light">
-                <a class="navbar-brand" href="#">Lasso Miner</a>
-                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-            </nav>
-            <div style="text-align: center;">
-                <button style="margin: 0 auto;" class="btn btn-light" type="button" data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
-                    Search
-                  </button>
-            </div>
-              <div class="collapse" id="collapseExample">
-                    <div class="jumbotron">
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text" id="basic-addon1">Genome</span>
-                                </div>
-                                <input id="gen" list="genomes" name="genomes" type="text" class="form-control" placeholder="Genome Name" aria-label="Genome" aria-describedby="basic-addon1">
-                                <datalist id="genomes">
-                                    <option value="No genomes found">
-                                </datalist>
-                            </div>
-                        
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text" id="basic-addon1">Min Position</span>
-                                </div>
-                                <input id="min" name="min" type="text" class="form-control" placeholder="Minimum Position" aria-label="MinPos" aria-describedby="basic-addon1">
-                            </div>
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text" id="basic-addon1">Max Position</span>
-                                </div>
-                                <input id="max" name="max" type="text" class="form-control" placeholder="Maximum Position" aria-label="MaxPos" aria-describedby="basic-addon1">
-                            </div>
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text" id="basic-addon1">Max Count</span>
-                                </div>
-                                <input id="num" name="num" type="text" class="form-control" placeholder="Max number of peptides" aria-label="Maxnum" aria-describedby="basic-addon1">
-                            </div>
-                            
-                            <button type="button" class="btn btn-primary" id="submit">Submit</button>
-                            <button type="button" class="btn btn-primary"  data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample" id="close">^</button>
-                        </div>
-              </div>
-        
-        <div id="results">
-
-        </div>
-
-         <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+        <div id="lasso_container"></div>
+        <script
+            src="https://unpkg.com/react@17/umd/react.development.js"
+            crossorigin
+        ></script>
+        <script
+            src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"
+            crossorigin
+        ></script>
+        <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+        <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
         <script src="https://www.gstatic.com/firebasejs/7.14.4/firebase-app.js"></script>
 
         <!-- If you enabled Analytics in your project, add the Firebase SDK for Analytics -->
@@ -68,7 +37,17 @@
         <!-- Add Firebase products that you want to use -->
         <script src="https://www.gstatic.com/firebasejs/7.14.4/firebase-auth.js"></script>
         <script src="https://www.gstatic.com/firebasejs/7.14.4/firebase-firestore.js"></script>
-        <script>
+        <!-- Plotly JS-->
+        <script
+            crossorigin
+            src="https://cdn.plot.ly/plotly-latest.min.js"
+        ></script>
+        <script
+            crossorigin
+            src="https://unpkg.com/react-plotly.js@1.0.2/dist/create-plotly-component.js"
+        ></script>
+        <!-- Main site logic -->
+        <script type="text/babel">
             var firebaseConfig = {
                 apiKey: "AIzaSyB5t_KPIagVnFh1kTeYOWmwOFtL2Gk1FyA",
                 authDomain: "lasso-peptides.firebaseapp.com",
@@ -76,196 +55,393 @@
                 projectId: "lasso-peptides",
                 storageBucket: "lasso-peptides.appspot.com",
                 messagingSenderId: "175389116206",
-                appId: "1:175389116206:web:038935cd7e647a30839cbf"
+                appId: "1:175389116206:web:038935cd7e647a30839cbf",
             };
             // Initialize Firebase
             firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
+            // Initialize Plotly
+            const Plot = createPlotlyComponent(Plotly);
 
-            db = firebase.firestore();
+            const LassoTrack = (props) => {
+                const lasso = props.lasso;
 
-            
+                let minRange = lasso.overallLength;
+                let maxRange = 0;
 
-            $(document).ready(function() {
-                db.collection("genomes").get().then((querySnapshot) => {
-                    genomeList = [];
-                    querySnapshot.forEach((doc) => {
-                        console.log(`${doc.id}`);
-                        genomeList.push(doc.id);
-                    });
-                    console.log("genomes: " + JSON.stringify(genomeList));
-                    $("#genomes").empty();
-                    for(var i = 0; i < genomeList.length; i++) {
-                        $("#genomes").append(`
-                            <option value="` + genomeList[i] + `">
-                        `);
+                function updateRange(number) {
+                    if (number < minRange) {
+                        minRange = number;
                     }
-                });
-            });
+                    if (number > maxRange) {
+                        maxRange = number;
+                    }
+                }
+                var sequence = {
+                    x: [0, lasso.overallLength],
+                    y: [1, 1],
+                    type: "line",
+                    name: "Sequence",
+                    marker: {
+                        color: "rgb(21,101,192)",
+                    },
+                    line: {
+                        color: "rgb(21,101,192)",
+                    },
+                };
 
-            function replaceAll(str, find, replace) {
-                return str.replace(new RegExp(find, 'g'), replace);
-            }
+                var Aprot = {
+                    x: [lasso.start, lasso.end],
+                    y: [3, 3],
+                    type: "line",
+                    name: "A",
+                    text: "A - precursor peptide",
+                    marker: {
+                        color: "rgb(46,125,50)",
+                    },
+                    line: {
+                        color: "rgb(46,125,50)",
+                    },
+                };
+                updateRange(lasso.start);
+                updateRange(lasso.end);
 
-            $("#submit").click(function() {
-                $("#results").empty();
-                $("#results").append(`
-                <br>
-                <div class="d-flex justify-content-center">
-                    <div class="spinner-border" role="status">
-                        <span class="sr-only">Loading...</span>
+                let closestOrfs = JSON.parse(lasso.closestOrfs);
+                const replaceAll = (str, find, replace) =>
+                    str.replace(new RegExp(find, "g"), replace);
+                closestOrfs = JSON.parse(replaceAll(closestOrfs, "'", '"'));
+
+                const protPlots = [];
+                for (let j = 0; j < closestOrfs.length; j++) {
+                    const closestI = closestOrfs[j];
+                    const otherIprots = [];
+
+                    // generate a random color
+                    const red = 50 + Math.ceil(Math.random() * 150);
+                    const green = 50 + Math.ceil(Math.random() * 150);
+                    const blue = 50 + Math.ceil(Math.random() * 150);
+
+                    // generate plot for this protein list
+                    // for(var e = 0; e < closestIs.length; e++) {
+                    const newProt = {
+                        x: [closestI["start"], closestI["end"]],
+                        y: [5 + 2 * j, 5 + 2 * j],
+                        type: "line",
+                        name:
+                            closestI["motifType"] +
+                            ": RF " +
+                            closestI["readingFrame"],
+                        text:
+                            closestI["motifType"] +
+                            "<br>RF " +
+                            closestI["readingFrame"] +
+                            "<br>Motif count: " +
+                            closestI["count"],
+                        marker: {
+                            color:
+                                "rgb(" + red + "," + green + "," + blue + ")",
+                        },
+                        line: {
+                            color:
+                                "rgb(" + red + "," + green + "," + blue + ")",
+                        },
+                    };
+                    otherIprots.push(newProt);
+                    updateRange(closestI["start"]);
+                    updateRange(closestI["end"]);
+                    protPlots.push(otherIprots);
+                }
+
+                var plotdata = [sequence, Aprot];
+                for (var e = 0; e < protPlots.length; e++) {
+                    protPlots[e].forEach((element) => plotdata.push(element));
+                }
+
+                return (
+                    <Plot
+                        data={plotdata}
+                        layout={{
+                            xaxis: {
+                                range: [minRange - 20, maxRange + 20],
+                            },
+                            yaxis: {
+                                range: [0, 10],
+                            },
+                            showlegend: false,
+                        }}
+                    />
+                );
+            };
+
+            const LassoDropdown = (props) => {
+                const lasso = props.lasso;
+                return (
+                    <div
+                        className="card"
+                        style={{ maxWidth: "80%", margin: "0 auto" }}
+                    >
+                        <div className="card-header">{lasso.sequence}</div>
+                        <div className="card-body">
+                            <a
+                                href={
+                                    "https://www.ncbi.nlm.nih.gov/nuccore/" +
+                                    lasso.accession +
+                                    "?report=genbank&from=" +
+                                    lasso.start +
+                                    "&to=" +
+                                    lasso.end
+                                }
+                                className="card-title"
+                            >
+                                {lasso.accession} ({lasso.start}..{lasso.end})
+                            </a>
+                            <p className="card-text">
+                                Rank: {lasso.rank}
+                                <br />
+                                Genome: {lasso.genome}
+                                <br />
+                                Index: {lasso.accession}
+                                <br />
+                                Range: {lasso.start}-{lasso.end}
+                                <br />
+                                Reading lasso: {lasso.orf}
+                            </p>
+                            <iframe
+                                id="theiframe"
+                                width="80%"
+                                style={{ margin: "0 auto" }}
+                                src={
+                                    "https://www.ncbi.nlm.nih.gov/projects/sviewer/embedded_iframe.html?iframe=theiframe&embedded=true&id=" +
+                                    lasso.accession +
+                                    "&from=" +
+                                    lasso.start +
+                                    "&to=" +
+                                    lasso.end
+                                }
+                                onLoad={() => {
+                                    if (!window._SViFrame) {
+                                        const _SViFrame = true;
+                                        window.addEventListener(
+                                            "message",
+                                            function (e) {
+                                                if (
+                                                    e.origin ==
+                                                        "https://www.ncbi.nlm.nih.gov" &&
+                                                    !isNaN(e.data.h)
+                                                )
+                                                    document.getElementById(
+                                                        e.data.f
+                                                    ).height = parseInt(
+                                                        e.data.h
+                                                    );
+                                            }
+                                        );
+                                    }
+                                }}
+                                height="291"
+                            >
+                                <p>Your browser does not support iframes.</p>
+                            </iframe>
+                            <br />
+                            <br />
+                            <LassoTrack lasso={lasso} />
+                        </div>
                     </div>
-                </div>
-                `);
-                // parse inputs
-                numQ = parseInt($('#num').val());
-                if (!numQ) {
-                    numQ = 5;
-                }
-                min = parseInt($('#min').val());
-                if (!min) {
-                    min = 0;
-                }
-                max = parseInt($('#max').val());
-                if (!max) {
-                    max = 10000000000;
-                }
-                
+                );
+            };
 
-                db.collection("peptides").where("genome", "==", $("#gen").val()).
-                // where("start", ">=", min).
-                // where("start", "<=", max).
-                orderBy("rank", "desc").limit(numQ)
-                .get().then(function(querySnapshot) {
-                    $("#results").empty();
-                    i = 0;
-                    querySnapshot.forEach(function(doc) {
-                        data = doc.data();
-                        console.log(data);
-                        i++;
+            const CardHolder = (props) => {
+                return props.cards.map((card, ind) => (
+                    <LassoDropdown key={ind} lasso={card} />
+                ));
+            };
 
-                        $("#results").append(`
-                        <div class="card" style="max-width: 80%; margin: 0 auto;">
-                            <div class="card-header">` + data.sequence + `</div>
-                            <div class="card-body">
-                                <a href="https://www.ncbi.nlm.nih.gov/nuccore/` + data.accession + `?report=genbank&from=` + data.start + `&to=` + data.end + `"class="card-title">` + data.accession + " (" + data.start + ".." + data.end +`)</a>
-                                <p class="card-text">
-                                    Rank: ` + data.rank + `<br>
-                                    Genome: ` + data.genome + `<br>
-                                    Index: ` + data.accession + `<br>
-                                    Range: ` + data.start + ' - ' + data.end +  `<br>
-                                    Reading Frame: ` + data.orf + `
-                                </p>
-                                <iframe id="theiframe" width="80%" style="margin: 0 auto;" 
-                                src="https://www.ncbi.nlm.nih.gov/projects/sviewer/embedded_iframe.html?iframe=theiframe&embedded=true&id=` + data.accession + `&from=` + data.start + `&to=` + data.end + `" 
-                                onload="if(!window._SViFrame){_SViFrame=true;window.addEventListener('message',function(e){if(e.origin=='https://www.ncbi.nlm.nih.gov' &amp;&amp; !isNaN(e.data.h))document.getElementById(e.data.f).height=parseInt(e.data.h);});}" height="291">
-                                    <p>Your browser does not support iframes.</p>
-                                </iframe>
-                                <br>
-                                <br>
-                                <button class="btn btn-info" type="button" data-toggle="collapse" data-target="#collapsable` + i + `" aria-expanded="false" aria-controls="#collapsable` + i + `">Details</button>
-                                <div class="collapse" id="collapsable` + i + `">
-                                    <div id="plot` + i + `"></div>
-                                    <p style="font-family:'Courier New'">` + JSON.stringify(data) + `</p>
+            const SearchBar = (props) => {
+                return (
+                    <div>
+                        <div style={{ textAlign: "center" }}>
+                            <button
+                                style={{ margin: "0 auto" }}
+                                className="btn btn-light"
+                                type="button"
+                                data-toggle="collapse"
+                                data-target="#collapseExample"
+                                aria-expanded="false"
+                                aria-controls="collapseExample"
+                            >
+                                Search
+                            </button>
+                        </div>
+                        <div className="collapse" id="collapseExample">
+                            <div className="jumbotron">
+                                <div className="input-group mb-3">
+                                    <div className="input-group-prepend">
+                                        <span
+                                            className="input-group-text"
+                                            id="basic-addon1"
+                                        >
+                                            Genome
+                                        </span>
+                                    </div>
+                                    <input
+                                        id="gen"
+                                        list="genomes"
+                                        name="genomes"
+                                        type="text"
+                                        className="form-control"
+                                        placeholder="Genome Name"
+                                        aria-label="Genome"
+                                        aria-describedby="basic-addon1"
+                                        value={props.genome}
+                                        onChange={(newVal) =>
+                                            props.onGenomeChange(
+                                                newVal.target.value
+                                            )
+                                        }
+                                    />
+                                    <datalist id="genomes">
+                                        {props.genomeList &&
+                                        props.genomeList.length > 0 ? (
+                                            props.genomeList.map(
+                                                (genomeName, ind) => (
+                                                    <option
+                                                        key={ind}
+                                                        value={genomeName}
+                                                    />
+                                                )
+                                            )
+                                        ) : (
+                                            <option value="No genomes found" />
+                                        )}
+                                    </datalist>
                                 </div>
+                                <div className="input-group mb-3">
+                                    <div className="input-group-prepend">
+                                        <span
+                                            className="input-group-text"
+                                            id="basic-addon1"
+                                        >
+                                            Max Count
+                                        </span>
+                                    </div>
+                                    <input
+                                        id="num"
+                                        name="num"
+                                        type="text"
+                                        className="form-control"
+                                        placeholder="Max number of peptides"
+                                        aria-label="Maxnum"
+                                        aria-describedby="basic-addon1"
+                                        value={props.maxNum}
+                                        onChange={(newVal) =>
+                                            props.onMaxNumChange(
+                                                newVal.target.value
+                                            )
+                                        }
+                                    />
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    id="submit"
+                                    onClick={() => props.onSubmit()}
+                                >
+                                    Submit
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    data-toggle="collapse"
+                                    data-target="#collapseExample"
+                                    aria-expanded="false"
+                                    aria-controls="collapseExample"
+                                    id="close"
+                                >
+                                    ^
+                                </button>
                             </div>
                         </div>
-                        <br>
-                        `);
+                    </div>
+                );
+            };
 
+            class LassoSearcher extends React.Component {
+                constructor(props) {
+                    super(props);
+                    this.state = {
+                        genome: "",
+                        maxNum: 10,
+                        genomeList: [],
+                        cards: [],
+                    };
+                }
 
-                        var minRange = data.overallLength;
-                        var maxRange = 0;
+                componentDidMount() {
+                    db.collection("genomes")
+                        .get()
+                        .then((querySnapshot) => {
+                            querySnapshot.forEach((doc) => {
+                                this.setState({
+                                    genomeList: [
+                                        ...this.state.genomeList,
+                                        doc.id,
+                                    ],
+                                });
+                            });
+                        });
+                }
 
-                        function updateRange(number) {
-                            if(number < minRange) {
-                                minRange = number;
-                            }
-                            if(number > maxRange) {
-                                maxRange = number;
-                            }
-                        }
-                        var sequence = {
-                            x: [0, data.overallLength],
-                            y: [1, 1],
-                            type: 'line',
-                            name: "Sequence",
-                            marker: {
-                                color: 'rgb(21,101,192)'
-                            },
-                            line: {
-                                color: 'rgb(21,101,192)'
-                            }
-                        }
+                updateCards() {
+                    const updateCardState = (val) => {
+                        this.setState({
+                            cards: val,
+                        });
+                    };
+                    db.collection("peptides")
+                        .where("genome", "==", this.state.genome)
+                        .orderBy("rank", "desc")
+                        .limit(this.state.maxNum)
+                        .get()
+                        .then(function (querySnapshot) {
+                            const queries = [];
+                            querySnapshot.forEach(function (doc) {
+                                const data = doc.data();
+                                queries.push(data);
+                            });
+                            updateCardState(queries);
+                        });
+                }
 
-                        var Aprot = {
-                            x: [data.start, data.end],
-                            y: [3, 3],
-                            type: 'line',
-                            name: "A",
-                            text: "A - precursor peptide",
-                            marker: {
-                                    color: 'rgb(46,125,50)'
-                                },
-                                line: {
-                                    color: 'rgb(46,125,50)'
+                render() {
+                    return (
+                        <div>
+                            <SearchBar
+                                genome={this.state.genome}
+                                onGenomeChange={(newGenome) =>
+                                    this.setState({
+                                        genome: newGenome,
+                                    })
                                 }
-                        };
-                        updateRange(data.start);
-                        updateRange(data.end);
+                                genomeList={this.state.genomeList}
+                                maxNum={this.state.maxNum}
+                                onMaxNumChange={(newMaxNum) =>
+                                    this.setState({
+                                        maxNum: int(newMaxNum),
+                                    })
+                                }
+                                onSubmit={() => this.updateCards()}
+                            />
+                            <CardHolder cards={this.state.cards} />
+                        </div>
+                    );
+                }
+            }
 
-                        closestProteins = JSON.parse(data.closestProtLists);
-                        closestProteins = JSON.parse(replaceAll(closestProteins, "\'", "\""));
-
-                        protPlots = []
-                        for(var j = 0; j < closestProteins.length; j++) {
-                            closestIs = closestProteins[j]
-                            var otherIprots = [];
-
-                            // generate a random color
-                            red = 50 + Math.ceil(Math.random() * 150);
-                            green = 50 + Math.ceil(Math.random() * 150);
-                            blue = 50 + Math.ceil(Math.random() * 150);
-
-                            // generate plot for this protein list
-                            for(var e = 0; e < closestIs.length; e++) {
-                                var newProt = {
-                                    x: [closestIs[e]["start"], closestIs[e]["end"]],
-                                    y: [5 + (2 * j), 5 + (2 * j)],
-                                    type: 'line',
-                                    name: closestIs[e]["memeDir"] + ": #" + e,
-                                    text: closestIs[e]["motif"] + "<br>P-value: " + closestIs[e]["p-value"],
-                                    marker: {
-                                        color: 'rgb(' + red + ',' + green + ',' + blue + ')'
-                                    },
-                                    line: {
-                                        color: 'rgb(' + red + ',' + green + ',' + blue + ')'
-                                    }
-                                };
-                                otherIprots.push(newProt);
-                                updateRange(closestIs[e]["start"]);
-                                updateRange(closestIs[e]["end"]);
-                            }
-                            protPlots.push(otherIprots)
-                        }
-
-                        var plotdata = [sequence, Aprot];
-                        for(var e = 0; e < protPlots.length; e++) {
-                            protPlots[e].forEach(element => plotdata.push(element))
-                        }
-
-                        Plotly.newPlot('plot' + i, plotdata, {
-                                xaxis: {
-                                    range: [minRange - 20, maxRange + 20]
-                                },
-                                yaxis: {
-                                    range: [0, 10]
-                                },
-                                showlegend: false
-                            }
-                        );
-                    });
-                });
-            });
+            // publish the root react container
+            const e = React.createElement;
+            const domContainer = document.querySelector("#lasso_container");
+            ReactDOM.render(e(LassoSearcher), domContainer);
         </script>
     </body>
 </html>

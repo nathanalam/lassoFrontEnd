@@ -37,15 +37,8 @@
         <!-- Add Firebase products that you want to use -->
         <script src="https://www.gstatic.com/firebasejs/7.14.4/firebase-auth.js"></script>
         <script src="https://www.gstatic.com/firebasejs/7.14.4/firebase-firestore.js"></script>
-        <!-- Plotly JS-->
-        <script
-            crossorigin
-            src="https://cdn.plot.ly/plotly-latest.min.js"
-        ></script>
-        <script
-            crossorigin
-            src="https://unpkg.com/react-plotly.js@1.0.2/dist/create-plotly-component.js"
-        ></script>
+        <!-- d3.js-->
+        <script src="https://d3js.org/d3.v6.min.js"></script>
         <!-- Main site logic -->
         <script type="text/babel">
             var firebaseConfig = {
@@ -60,8 +53,6 @@
             // Initialize Firebase
             firebase.initializeApp(firebaseConfig);
             const db = firebase.firestore();
-            // Initialize Plotly
-            const Plot = createPlotlyComponent(Plotly);
 
             // helper functions
             const lassoEquality = (l1, l2) =>
@@ -84,32 +75,7 @@
                         maxRange = number;
                     }
                 }
-                var sequence = {
-                    x: [0, lasso.overallLength],
-                    y: [1, 1],
-                    type: "line",
-                    name: "Sequence",
-                    marker: {
-                        color: "rgb(21,101,192)",
-                    },
-                    line: {
-                        color: "rgb(21,101,192)",
-                    },
-                };
 
-                var Aprot = {
-                    x: [lasso.start, lasso.end],
-                    y: [3, 3],
-                    type: "line",
-                    name: "A",
-                    text: "A - precursor peptide",
-                    marker: {
-                        color: "rgb(46,125,50)",
-                    },
-                    line: {
-                        color: "rgb(46,125,50)",
-                    },
-                };
                 updateRange(lasso.start);
                 updateRange(lasso.end);
 
@@ -159,36 +125,132 @@
                     protPlots.push(otherIprots);
                 }
 
-                var plotdata = [sequence, Aprot];
-                for (var e = 0; e < protPlots.length; e++) {
-                    protPlots[e].forEach((element) => plotdata.push(element));
-                }
+                const d3Container = React.useRef(null);
+                const width = 800;
+                const height = 400;
+
+                const normalize = (xpoint) =>
+                    width * ((xpoint - minRange) / (maxRange - minRange));
+                const motifColors = ["green", "blue", "yellow", "orange"];
+                React.useEffect(() => {
+                    if (d3Container.current) {
+                        const svg = d3.select(d3Container.current);
+
+                        svg.append("rect")
+                            .attr("x", normalize(lasso.start))
+                            .attr("y", 200)
+                            .attr(
+                                "width",
+                                normalize(lasso.end) - normalize(lasso.start)
+                            )
+                            .attr("height", 40)
+                            .attr("stroke", "black")
+                            .attr("fill", "red")
+                            .on("click", function () {
+                                console.log(lasso.sequence);
+                            });
+
+                        for (let j = 0; j < closestOrfs.length; j++) {
+                            const closestI = closestOrfs[j];
+                            svg.append("rect")
+                                .attr("x", normalize(closestI.start))
+                                .attr("y", 200)
+                                .attr(
+                                    "width",
+                                    normalize(closestI.end) -
+                                        normalize(closestI.start)
+                                )
+                                .attr("height", 40)
+                                .attr("stroke", "black")
+                                .attr(
+                                    "fill",
+                                    motifColors[j % motifColors.length]
+                                )
+                                .on("click", function () {
+                                    console.log(closestI);
+                                });
+                        }
+                    }
+                }, [d3Container.current]);
 
                 return (
-                    <Plot
-                        data={plotdata}
-                        layout={{
-                            xaxis: {
-                                range: [minRange - 20, maxRange + 20],
-                            },
-                            yaxis: {
-                                range: [0, 10],
-                            },
-                            showlegend: false,
-                        }}
+                    <svg
+                        className="d3-component"
+                        width={width}
+                        height={height}
+                        ref={d3Container}
                     />
+                );
+            };
+
+            const NCBIFrame = (props) => {
+                return (
+                    <iframe
+                        id="theiframe"
+                        width="80%"
+                        style={{ margin: "0 auto" }}
+                        src={
+                            "https://www.ncbi.nlm.nih.gov/projects/sviewer/embedded_iframe.html?iframe=theiframe&embedded=true&id=" +
+                            props.accession +
+                            "&from=" +
+                            props.start +
+                            "&to=" +
+                            props.end
+                        }
+                        onLoad={() => {
+                            if (!window._SViFrame) {
+                                const _SViFrame = true;
+                                window.addEventListener(
+                                    "message",
+                                    function (e) {
+                                        if (
+                                            e.origin ==
+                                                "https://www.ncbi.nlm.nih.gov" &&
+                                            !isNaN(e.data.h)
+                                        )
+                                            document.getElementById(
+                                                e.data.f
+                                            ).height = parseInt(e.data.h);
+                                    }
+                                );
+                            }
+                        }}
+                        height="291"
+                    >
+                        <p>Your browser does not support iframes.</p>
+                    </iframe>
                 );
             };
 
             const LassoDropdown = (props) => {
                 const lasso = props.lasso;
+                lasso.name =
+                    lasso.genome.substring(0, 3).toUpperCase() +
+                    lasso.accession
+                        .substring(
+                            lasso.accession.length - 3,
+                            lasso.accession.length
+                        )
+                        .toUpperCase() +
+                    lasso.sequence.substring(0, 3);
+                const [collapsed, setCollapsed] = React.useState(true);
                 return (
                     <div
                         className="card"
                         style={{ maxWidth: "80%", margin: "0 auto" }}
                     >
-                        <div className="card-header">{lasso.sequence}</div>
-                        <div className="card-body">
+                        <div
+                            onClick={() => setCollapsed(!collapsed)}
+                            className="card-header"
+                        >
+                            {lasso.name}
+                        </div>
+                        <div
+                            className={
+                                "card-body collapse" +
+                                (collapsed ? "" : ".show")
+                            }
+                        >
                             {props.isFavorite ? (
                                 <button
                                     onClick={() =>
@@ -224,48 +286,15 @@
                                 <br />
                                 Genome: {lasso.genome}
                                 <br />
-                                Index: {lasso.accession}
-                                <br />
                                 Range: {lasso.start}-{lasso.end}
                                 <br />
                                 Reading lasso: {lasso.orf}
                             </p>
-                            <iframe
-                                id="theiframe"
-                                width="80%"
-                                style={{ margin: "0 auto" }}
-                                src={
-                                    "https://www.ncbi.nlm.nih.gov/projects/sviewer/embedded_iframe.html?iframe=theiframe&embedded=true&id=" +
-                                    lasso.accession +
-                                    "&from=" +
-                                    lasso.start +
-                                    "&to=" +
-                                    lasso.end
-                                }
-                                onLoad={() => {
-                                    if (!window._SViFrame) {
-                                        const _SViFrame = true;
-                                        window.addEventListener(
-                                            "message",
-                                            function (e) {
-                                                if (
-                                                    e.origin ==
-                                                        "https://www.ncbi.nlm.nih.gov" &&
-                                                    !isNaN(e.data.h)
-                                                )
-                                                    document.getElementById(
-                                                        e.data.f
-                                                    ).height = parseInt(
-                                                        e.data.h
-                                                    );
-                                            }
-                                        );
-                                    }
-                                }}
-                                height="291"
-                            >
-                                <p>Your browser does not support iframes.</p>
-                            </iframe>
+                            <NCBIFrame
+                                start={lasso.start}
+                                end={lasso.end}
+                                accession={lasso.accession}
+                            />
                             <br />
                             <br />
                             <LassoTrack lasso={lasso} />

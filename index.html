@@ -37,15 +37,8 @@
         <!-- Add Firebase products that you want to use -->
         <script src="https://www.gstatic.com/firebasejs/7.14.4/firebase-auth.js"></script>
         <script src="https://www.gstatic.com/firebasejs/7.14.4/firebase-firestore.js"></script>
-        <!-- Plotly JS-->
-        <script
-            crossorigin
-            src="https://cdn.plot.ly/plotly-latest.min.js"
-        ></script>
-        <script
-            crossorigin
-            src="https://unpkg.com/react-plotly.js@1.0.2/dist/create-plotly-component.js"
-        ></script>
+        <!-- d3.js-->
+        <script src="https://d3js.org/d3.v6.min.js"></script>
         <!-- Main site logic -->
         <script type="text/babel">
             var firebaseConfig = {
@@ -60,8 +53,232 @@
             // Initialize Firebase
             firebase.initializeApp(firebaseConfig);
             const db = firebase.firestore();
-            // Initialize Plotly
-            const Plot = createPlotlyComponent(Plotly);
+
+            // helper functions
+            const lassoEquality = (l1, l2) =>
+                l1.sequence === l2.sequence &&
+                l1.genome === l2.genome &&
+                l1.start === l2.start &&
+                l1.end === l2.end;
+            const lassoFields = [
+                "name",
+                "sequence",
+                "secondaryRank",
+                "orf",
+                "runName",
+                "accession",
+                "genome",
+                "overallLength",
+                "rank",
+                "start",
+                "end",
+                "closestOrfs",
+            ];
+
+            const PrecursorDetails = (props) => {
+                const lasso = props.lasso;
+                function sequenceToVisual(sequence) {
+                    const combinations = [];
+
+                    const regex = /T[A-Z]{7,9}[DE]/gm;
+                    let m;
+
+                    while ((m = regex.exec(sequence)) !== null) {
+                        // This is necessary to avoid infinite loops with zero-width matches
+                        if (m.index === regex.lastIndex) {
+                            regex.lastIndex++;
+                        }
+
+                        // The result can be accessed through the `m`-variable.
+                        m.forEach((match, groupIndex) => {
+                            combinations.push({
+                                leader: sequence.substring(
+                                    0,
+                                    sequence.indexOf(match) + 2
+                                ),
+                                core: match.substring(2),
+                                tail: sequence.substring(
+                                    sequence.indexOf(match) + match.length
+                                ),
+                            });
+                        });
+                    }
+                    return combinations;
+                }
+                return (
+                    <div>
+                        <a
+                            href={
+                                "https://www.ncbi.nlm.nih.gov/nuccore/" +
+                                lasso.accession +
+                                "?report=genbank&from=" +
+                                lasso.start +
+                                "&to=" +
+                                lasso.end
+                            }
+                            className="card-title"
+                        >
+                            {lasso.accession} ({lasso.start}..{lasso.end})
+                        </a>
+                        <br />
+                        {sequenceToVisual(lasso.sequence).map(
+                            (combination, ind) => (
+                                <p key={ind}>
+                                    <span style={{ color: "red" }}>
+                                        {combination.leader}
+                                    </span>
+                                    <span style={{ color: "green" }}>
+                                        {combination.core}
+                                    </span>
+                                    <span style={{ color: "blue" }}>
+                                        {combination.tail}
+                                    </span>
+                                </p>
+                            )
+                        )}
+                        Rank: {lasso.rank}
+                        <br />
+                        Secondary Rank: {lasso.secondaryRank}
+                        <br />
+                        Genome: {lasso.genome}
+                        <br />
+                        Range: {lasso.start}-{lasso.end}
+                    </div>
+                );
+            };
+
+            const AccessoryDetails = (props) => {
+                const accessory = props.accessory;
+
+                const d3Container = React.useRef(null);
+                const [width, height] = [600, 100];
+
+                const normalize = (xpoint) =>
+                    width *
+                    ((xpoint - accessory.start) /
+                        (accessory.end - accessory.start));
+                React.useEffect(() => {
+                    if (d3Container.current) {
+                        const svg = d3.select(d3Container.current);
+                        svg.selectAll("*").remove();
+
+                        svg.append("rect")
+                            .attr("x", normalize(accessory.start))
+                            .attr("y", 0)
+                            .attr(
+                                "width",
+                                normalize(accessory.end) -
+                                    normalize(accessory.start)
+                            )
+                            .attr("height", 40)
+                            .attr("stroke", "black")
+                            .attr("fill", "gray");
+
+                        accessory.motifs.forEach((motif) => {
+                            svg.append("rect")
+                                .attr("x", normalize(motif.start * 3))
+                                .attr("y", 40)
+                                .attr(
+                                    "width",
+                                    normalize(motif.end * 3) -
+                                        normalize(motif.start * 3)
+                                )
+                                .attr("height", 40)
+                                .attr("stroke", "black")
+                                .attr("fill", "blue")
+                                .style("opacity", 1 - motif["p-value"])
+                                .append("title")
+                                .text(
+                                    `p-value: ${motif["p-value"]}\nmotif: ${motif.motif}`
+                                );
+                        });
+                    }
+                }, [d3Container.current, accessory]);
+
+                return (
+                    <div>
+                        <svg
+                            className="d3-component"
+                            width={width}
+                            height={height}
+                            ref={d3Container}
+                        />
+                        <p>
+                            Motif fraction: {(accessory.count * 100).toFixed(2)}
+                            %
+                        </p>
+                        <p>Motif file: {accessory.motifType}</p>
+                        <h4>Sequence</h4>
+                        <div
+                            className="card card-body bg-light"
+                            style={{
+                                height: 400,
+                                width: "80%",
+                                overflowWrap: "break-word",
+                                overflowY: "scroll",
+                            }}
+                        >
+                            {accessory.sequence}
+                        </div>
+                        <h4>Motif Details</h4>
+                        <div
+                            className="card card-body bg-light"
+                            style={{
+                                height: 400,
+                                width: "80%",
+                                overflowWrap: "break-word",
+                                overflowY: "scroll",
+                            }}
+                        >
+                            {JSON.stringify(accessory.motifs)}
+                        </div>
+                    </div>
+                );
+            };
+
+            const Modal = (props) => {
+                return (
+                    <div
+                        className="modal fade"
+                        id="exampleModal"
+                        tabIndex="-1"
+                        role="dialog"
+                        aria-labelledby="exampleModalLabel"
+                        aria-hidden="true"
+                    >
+                        <div className="modal-dialog modal-lg" role="document">
+                            <div className="modal-content">
+                                <div className="modal-header">
+                                    <h5
+                                        className="modal-title"
+                                        id="exampleModalLabel"
+                                    >
+                                        {props.title}
+                                    </h5>
+                                    <button
+                                        type="button"
+                                        className="close"
+                                        data-dismiss="modal"
+                                        aria-label="Close"
+                                    >
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div className="modal-body">{props.body}</div>
+                                <div className="modal-footer">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        data-dismiss="modal"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
 
             const LassoTrack = (props) => {
                 const lasso = props.lasso;
@@ -77,32 +294,7 @@
                         maxRange = number;
                     }
                 }
-                var sequence = {
-                    x: [0, lasso.overallLength],
-                    y: [1, 1],
-                    type: "line",
-                    name: "Sequence",
-                    marker: {
-                        color: "rgb(21,101,192)",
-                    },
-                    line: {
-                        color: "rgb(21,101,192)",
-                    },
-                };
 
-                var Aprot = {
-                    x: [lasso.start, lasso.end],
-                    y: [3, 3],
-                    type: "line",
-                    name: "A",
-                    text: "A - precursor peptide",
-                    marker: {
-                        color: "rgb(46,125,50)",
-                    },
-                    line: {
-                        color: "rgb(46,125,50)",
-                    },
-                };
                 updateRange(lasso.start);
                 updateRange(lasso.end);
 
@@ -152,215 +344,355 @@
                     protPlots.push(otherIprots);
                 }
 
-                var plotdata = [sequence, Aprot];
-                for (var e = 0; e < protPlots.length; e++) {
-                    protPlots[e].forEach((element) => plotdata.push(element));
-                }
+                const d3Container = React.useRef(null);
+                const width = 800;
+                const height = 300;
+
+                const normalize = (xpoint) =>
+                    50 +
+                    (width - 50) *
+                        ((xpoint - minRange) / (maxRange - minRange));
+                const motifColors = ["green", "blue", "yellow", "orange"];
+                const readingFrameToHeight = (rf) =>
+                    [0, 0, 100, 200][Math.abs(rf)];
+                React.useEffect(() => {
+                    if (d3Container.current) {
+                        const svg = d3.select(d3Container.current);
+                        svg.selectAll("*").remove();
+                        const appendRFlabel = (label) => {
+                            svg.append("text")
+                                .attr("x", 0)
+                                .attr("y", readingFrameToHeight(label) + 20)
+                                .attr("dy", ".35em")
+                                .text(label.toString());
+                        };
+                        appendRFlabel(1);
+                        appendRFlabel(2);
+                        appendRFlabel(3);
+
+                        const chevron = (x, y, width, height, direction) => {
+                            const offset = width > 20 ? 20 : width * 0.8;
+                            if (direction > 0)
+                                return `${x},${y} ${x + width - offset},${y} ${
+                                    x + width
+                                },${y + height / 2} ${x + width - offset},${
+                                    y + height
+                                } ${x},${y + height}`;
+                            return `${x + offset},${y} ${x + width},${y} ${
+                                x + width
+                            },${y + height} ${x + offset},${y + height} ${x},${
+                                y + height / 2
+                            }`;
+                        };
+
+                        svg.append("polygon")
+                            .attr(
+                                "points",
+                                chevron(
+                                    normalize(lasso.start),
+                                    readingFrameToHeight(lasso.orf),
+                                    normalize(lasso.end) -
+                                        normalize(lasso.start),
+                                    40,
+                                    lasso.orf
+                                )
+                            )
+                            .attr("stroke", "black")
+                            .attr("fill", "red")
+                            .on("click", function () {
+                                props.updateModal({
+                                    title: "Precursor Details",
+                                    body: (
+                                        <div>
+                                            <PrecursorDetails lasso={lasso} />
+                                            <NCBIFrame
+                                                start={lasso.start}
+                                                end={lasso.end}
+                                                accession={lasso.accession}
+                                            />
+                                        </div>
+                                    ),
+                                });
+                            })
+                            .attr("data-toggle", "modal")
+                            .attr("data-target", "#exampleModal")
+                            .style("cursor", "pointer")
+                            .append("title")
+                            .text(`Precursor A`);
+
+                        for (let j = 0; j < closestOrfs.length; j++) {
+                            const closestI = closestOrfs[j];
+                            svg.append("polygon")
+                                .attr(
+                                    "points",
+                                    chevron(
+                                        normalize(closestI.start),
+                                        readingFrameToHeight(
+                                            closestI.readingFrame
+                                        ),
+                                        normalize(closestI.end) -
+                                            normalize(closestI.start),
+                                        40,
+                                        closestI.readingFrame
+                                    )
+                                )
+                                .attr("stroke", "black")
+                                .attr(
+                                    "fill",
+                                    motifColors[j % motifColors.length]
+                                )
+                                .on("click", function () {
+                                    props.updateModal({
+                                        title: "Accessory Protein Details",
+                                        body: (
+                                            <div>
+                                                <NCBIFrame
+                                                    start={closestI.start}
+                                                    end={closestI.end}
+                                                    accession={lasso.accession}
+                                                />
+                                                <AccessoryDetails
+                                                    accessory={closestI}
+                                                />
+                                            </div>
+                                        ),
+                                    });
+                                })
+                                .attr("data-toggle", "modal")
+                                .attr("data-target", "#exampleModal")
+                                .style("cursor", "pointer")
+                                .append("title")
+                                .text(closestI.motifType);
+                        }
+                    }
+                }, [d3Container.current, lasso]);
 
                 return (
-                    <Plot
-                        data={plotdata}
-                        layout={{
-                            xaxis: {
-                                range: [minRange - 20, maxRange + 20],
-                            },
-                            yaxis: {
-                                range: [0, 10],
-                            },
-                            showlegend: false,
-                        }}
+                    <svg
+                        className="d3-component"
+                        width={width}
+                        height={height}
+                        ref={d3Container}
                     />
+                );
+            };
+
+            const NCBIFrame = (props) => {
+                return (
+                    <iframe
+                        id="theiframe"
+                        width="80%"
+                        style={{ margin: "0 auto" }}
+                        src={
+                            "https://www.ncbi.nlm.nih.gov/projects/sviewer/embedded_iframe.html?iframe=theiframe&embedded=true&id=" +
+                            props.accession +
+                            "&from=" +
+                            props.start +
+                            "&to=" +
+                            props.end
+                        }
+                        onLoad={() => {
+                            if (!window._SViFrame) {
+                                const _SViFrame = true;
+                                window.addEventListener(
+                                    "message",
+                                    function (e) {
+                                        if (
+                                            e.origin ==
+                                                "https://www.ncbi.nlm.nih.gov" &&
+                                            !isNaN(e.data.h)
+                                        )
+                                            document.getElementById(
+                                                e.data.f
+                                            ).height = parseInt(e.data.h);
+                                    }
+                                );
+                            }
+                        }}
+                        height="291"
+                    >
+                        <p>Your browser does not support iframes.</p>
+                    </iframe>
                 );
             };
 
             const LassoDropdown = (props) => {
                 const lasso = props.lasso;
+                lasso.name =
+                    lasso.genome.substring(0, 3).toUpperCase() +
+                    lasso.accession
+                        .substring(
+                            lasso.accession.length - 3,
+                            lasso.accession.length
+                        )
+                        .toUpperCase() +
+                    lasso.sequence.substring(0, 3);
+                const [collapsed, setCollapsed] = React.useState(true);
                 return (
                     <div
                         className="card"
-                        style={{ maxWidth: "80%", margin: "0 auto" }}
+                        style={{ maxWidth: "80%", margin: "4em auto" }}
                     >
-                        <div className="card-header">{lasso.sequence}</div>
-                        <div className="card-body">
-                            <a
-                                href={
-                                    "https://www.ncbi.nlm.nih.gov/nuccore/" +
-                                    lasso.accession +
-                                    "?report=genbank&from=" +
-                                    lasso.start +
-                                    "&to=" +
-                                    lasso.end
-                                }
-                                className="card-title"
-                            >
-                                {lasso.accession} ({lasso.start}..{lasso.end})
-                            </a>
-                            <p className="card-text">
-                                Rank: {lasso.rank}
-                                <br />
-                                Genome: {lasso.genome}
-                                <br />
-                                Index: {lasso.accession}
-                                <br />
-                                Range: {lasso.start}-{lasso.end}
-                                <br />
-                                Reading lasso: {lasso.orf}
-                            </p>
-                            <iframe
-                                id="theiframe"
-                                width="80%"
-                                style={{ margin: "0 auto" }}
-                                src={
-                                    "https://www.ncbi.nlm.nih.gov/projects/sviewer/embedded_iframe.html?iframe=theiframe&embedded=true&id=" +
-                                    lasso.accession +
-                                    "&from=" +
-                                    lasso.start +
-                                    "&to=" +
-                                    lasso.end
-                                }
-                                onLoad={() => {
-                                    if (!window._SViFrame) {
-                                        const _SViFrame = true;
-                                        window.addEventListener(
-                                            "message",
-                                            function (e) {
-                                                if (
-                                                    e.origin ==
-                                                        "https://www.ncbi.nlm.nih.gov" &&
-                                                    !isNaN(e.data.h)
-                                                )
-                                                    document.getElementById(
-                                                        e.data.f
-                                                    ).height = parseInt(
-                                                        e.data.h
-                                                    );
-                                            }
-                                        );
-                                    }
+                        <div
+                            onClick={() => setCollapsed(!collapsed)}
+                            className="card-header"
+                            style={{ cursor: "pointer" }}
+                        >
+                            <div
+                                style={{
+                                    display: "inline-block",
+                                    width: "50%",
                                 }}
-                                height="291"
                             >
-                                <p>Your browser does not support iframes.</p>
-                            </iframe>
+                                {collapsed ? "▼" : "▲"} {lasso.name}
+                            </div>
+                            <div
+                                style={{
+                                    display: "inline-block",
+                                    width: "50%",
+                                    textAlign: "right",
+                                }}
+                            >
+                                Rank: {lasso.rank.toFixed(3)} - Secondary Rank:{" "}
+                                {lasso.secondaryRank.toFixed(5)}
+                                {}{" "}
+                                {props.isFavorite ? (
+                                    <button
+                                        className={"btn btn-light"}
+                                        onClick={() =>
+                                            props.unfavorite(props.lasso)
+                                        }
+                                    >
+                                        ★
+                                    </button>
+                                ) : (
+                                    <button
+                                        className={"btn btn-light"}
+                                        onClick={() =>
+                                            props.favorite(props.lasso)
+                                        }
+                                    >
+                                        ☆
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div
+                            className={
+                                "card-body collapse" +
+                                (collapsed ? "" : ".show")
+                            }
+                        >
+                            <h3 className="card-text">{lasso.sequence}</h3>
                             <br />
                             <br />
-                            <LassoTrack lasso={lasso} />
+                            <LassoTrack
+                                lasso={lasso}
+                                updateModal={props.updateModal}
+                            />
                         </div>
                     </div>
                 );
             };
 
             const CardHolder = (props) => {
-                return props.cards.map((card, ind) => (
-                    <LassoDropdown key={ind} lasso={card} />
-                ));
+                return props.lassos.map((lasso, ind) => {
+                    let isFavorite = false;
+                    props.favorites.forEach((favorite) => {
+                        if (lassoEquality(lasso, favorite)) isFavorite = true;
+                    });
+                    return (
+                        <LassoDropdown
+                            key={ind}
+                            lasso={lasso}
+                            favorite={props.favoriteLasso}
+                            unfavorite={props.unfavoriteLasso}
+                            isFavorite={isFavorite}
+                            updateModal={props.updateModal}
+                        />
+                    );
+                });
             };
 
             const SearchBar = (props) => {
                 return (
                     <div>
-                        <div style={{ textAlign: "center" }}>
-                            <button
-                                style={{ margin: "0 auto" }}
-                                className="btn btn-light"
-                                type="button"
-                                data-toggle="collapse"
-                                data-target="#collapseExample"
-                                aria-expanded="false"
-                                aria-controls="collapseExample"
-                            >
-                                Search
-                            </button>
-                        </div>
-                        <div className="collapse" id="collapseExample">
-                            <div className="jumbotron">
-                                <div className="input-group mb-3">
-                                    <div className="input-group-prepend">
-                                        <span
-                                            className="input-group-text"
-                                            id="basic-addon1"
-                                        >
-                                            Genome
-                                        </span>
-                                    </div>
-                                    <input
-                                        id="gen"
-                                        list="genomes"
-                                        name="genomes"
-                                        type="text"
-                                        className="form-control"
-                                        placeholder="Genome Name"
-                                        aria-label="Genome"
-                                        aria-describedby="basic-addon1"
-                                        value={props.genome}
-                                        onChange={(newVal) =>
-                                            props.onGenomeChange(
-                                                newVal.target.value
-                                            )
-                                        }
-                                    />
-                                    <datalist id="genomes">
-                                        {props.genomeList &&
-                                        props.genomeList.length > 0 ? (
-                                            props.genomeList.map(
-                                                (genomeName, ind) => (
-                                                    <option
-                                                        key={ind}
-                                                        value={genomeName}
-                                                    />
-                                                )
-                                            )
-                                        ) : (
-                                            <option value="No genomes found" />
-                                        )}
-                                    </datalist>
+                        <div className="jumbotron">
+                            <div className="input-group mb-3">
+                                <div className="input-group-prepend">
+                                    <span
+                                        className="input-group-text"
+                                        id="basic-addon1"
+                                    >
+                                        Genome
+                                    </span>
                                 </div>
-                                <div className="input-group mb-3">
-                                    <div className="input-group-prepend">
-                                        <span
-                                            className="input-group-text"
-                                            id="basic-addon1"
-                                        >
-                                            Max Count
-                                        </span>
-                                    </div>
-                                    <input
-                                        id="num"
-                                        name="num"
-                                        type="text"
-                                        className="form-control"
-                                        placeholder="Max number of peptides"
-                                        aria-label="Maxnum"
-                                        aria-describedby="basic-addon1"
-                                        value={props.maxNum}
-                                        onChange={(newVal) =>
-                                            props.onMaxNumChange(
-                                                newVal.target.value
+                                <input
+                                    id="gen"
+                                    list="genomes"
+                                    name="genomes"
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Genome Name"
+                                    aria-label="Genome"
+                                    aria-describedby="basic-addon1"
+                                    value={props.genome}
+                                    onChange={(newVal) =>
+                                        props.onGenomeChange(
+                                            newVal.target.value
+                                        )
+                                    }
+                                />
+                                <datalist id="genomes">
+                                    {props.genomeList &&
+                                    props.genomeList.length > 0 ? (
+                                        props.genomeList.map(
+                                            (genomeName, ind) => (
+                                                <option
+                                                    key={ind}
+                                                    value={genomeName}
+                                                />
                                             )
-                                        }
-                                    />
-                                </div>
-
-                                <button
-                                    type="button"
-                                    className="btn btn-primary"
-                                    id="submit"
-                                    onClick={() => props.onSubmit()}
-                                >
-                                    Submit
-                                </button>
-                                <button
-                                    type="button"
-                                    className="btn btn-primary"
-                                    data-toggle="collapse"
-                                    data-target="#collapseExample"
-                                    aria-expanded="false"
-                                    aria-controls="collapseExample"
-                                    id="close"
-                                >
-                                    ^
-                                </button>
+                                        )
+                                    ) : (
+                                        <option value="No genomes found" />
+                                    )}
+                                </datalist>
                             </div>
+                            <div className="input-group mb-3">
+                                <div className="input-group-prepend">
+                                    <span
+                                        className="input-group-text"
+                                        id="basic-addon1"
+                                    >
+                                        Max Count
+                                    </span>
+                                </div>
+                                <input
+                                    id="num"
+                                    name="num"
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Max number of peptides"
+                                    aria-label="Maxnum"
+                                    aria-describedby="basic-addon1"
+                                    value={props.maxNum}
+                                    onChange={(newVal) =>
+                                        props.onMaxNumChange(
+                                            newVal.target.value
+                                        )
+                                    }
+                                />
+                            </div>
+
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                id="submit"
+                                onClick={() => props.onSubmit()}
+                            >
+                                Submit
+                            </button>
                         </div>
                     </div>
                 );
@@ -373,8 +705,15 @@
                         genome: "",
                         maxNum: 10,
                         genomeList: [],
-                        cards: [],
+                        lassos: [],
+                        tabSelection: 0,
+                        favorites: [],
+                        modalContent: {
+                            title: "Details",
+                            body: "...",
+                        },
                     };
+                    this.fileInput = React.createRef();
                 }
 
                 componentDidMount() {
@@ -390,17 +729,22 @@
                                 });
                             });
                         });
+                    this.setState({
+                        favorites: JSON.parse(
+                            window.localStorage.getItem("favorites")
+                        ),
+                    });
                 }
 
-                updateCards() {
-                    const updateCardState = (val) => {
+                updateLassos() {
+                    const updateLassoState = (val) => {
                         this.setState({
-                            cards: val,
+                            lassos: val,
                         });
                     };
                     db.collection("peptides")
                         .where("genome", "==", this.state.genome)
-                        .orderBy("rank", "desc")
+                        .orderBy("secondaryRank", "desc")
                         .limit(this.state.maxNum)
                         .get()
                         .then(function (querySnapshot) {
@@ -409,30 +753,274 @@
                                 const data = doc.data();
                                 queries.push(data);
                             });
-                            updateCardState(queries);
+                            updateLassoState(queries);
                         });
                 }
+
+                favoriteLassos(newFavorites) {
+                    const updateFavoriteState = (val) => {
+                        this.setState({
+                            favorites: newFavorites,
+                        });
+                    };
+                    updateFavoriteState(newFavorites);
+                    window.localStorage.setItem(
+                        "favorites",
+                        JSON.stringify(newFavorites)
+                    );
+                }
+
+                exportToCsv() {
+                    let csvContent =
+                        "data:text/csv;charset=utf-8," +
+                        lassoFields.join(",") +
+                        "\n" +
+                        this.state.favorites
+                            .map((lasso) =>
+                                lassoFields
+                                    .map((field) => lasso[field])
+                                    .join(",")
+                            )
+                            .join("\n");
+                    const encodedUri = encodeURI(csvContent);
+                    window.open(encodedUri);
+                }
+                importFromCsv = async (event) => {
+                    event.preventDefault();
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        const text = e.target.result;
+                        const lines = text.split("\n");
+                        const readLassos = lines.slice(1);
+                        this.favoriteLassos(
+                            readLassos.map((lassoline) => {
+                                let lassobuffer = "" + lassoline;
+                                const newLasso = {};
+                                lassoFields
+                                    .slice(0, lassoFields.length - 1)
+                                    .forEach((field) => {
+                                        let val = lassobuffer.substring(
+                                            0,
+                                            lassobuffer.indexOf(",")
+                                        );
+                                        if (
+                                            [
+                                                "rank",
+                                                "secondaryRank",
+                                                "orf",
+                                                "overallLength",
+                                                "start",
+                                                "end",
+                                            ].includes(field)
+                                        )
+                                            val = parseFloat(val);
+                                        if (
+                                            [
+                                                "orf",
+                                                "overallLength",
+                                                "start",
+                                                "end",
+                                            ].includes(field)
+                                        )
+                                            val = parseInt(val);
+                                        newLasso[field] = val;
+                                        lassobuffer = lassobuffer.substring(
+                                            lassobuffer.indexOf(",") + 1
+                                        );
+                                    });
+                                newLasso["closestOrfs"] = lassobuffer;
+                                return newLasso;
+                            })
+                        );
+                    };
+                    reader.readAsText(event.target.files[0]);
+                };
 
                 render() {
                     return (
                         <div>
-                            <SearchBar
-                                genome={this.state.genome}
-                                onGenomeChange={(newGenome) =>
-                                    this.setState({
-                                        genome: newGenome,
-                                    })
-                                }
-                                genomeList={this.state.genomeList}
-                                maxNum={this.state.maxNum}
-                                onMaxNumChange={(newMaxNum) =>
-                                    this.setState({
-                                        maxNum: int(newMaxNum),
-                                    })
-                                }
-                                onSubmit={() => this.updateCards()}
+                            <Modal
+                                title={this.state.modalContent.title}
+                                body={this.state.modalContent.body}
                             />
-                            <CardHolder cards={this.state.cards} />
+                            <ul className="nav nav-tabs">
+                                <li className="nav-item">
+                                    <a
+                                        className={
+                                            "nav-link" +
+                                            (this.state.tabSelection == 0
+                                                ? " active"
+                                                : "")
+                                        }
+                                        aria-current="page"
+                                        href="#"
+                                        onClick={() =>
+                                            this.setState({ tabSelection: 0 })
+                                        }
+                                    >
+                                        Search
+                                    </a>
+                                </li>
+                                <li className="nav-item">
+                                    <a
+                                        className={
+                                            "nav-link" +
+                                            (this.state.tabSelection == 1
+                                                ? " active"
+                                                : "")
+                                        }
+                                        href="#"
+                                        onClick={() =>
+                                            this.setState({ tabSelection: 1 })
+                                        }
+                                    >
+                                        Favorites
+                                    </a>
+                                </li>
+                            </ul>
+                            {
+                                {
+                                    0: (
+                                        <div>
+                                            <SearchBar
+                                                genome={this.state.genome}
+                                                onGenomeChange={(newGenome) =>
+                                                    this.setState({
+                                                        genome: newGenome,
+                                                    })
+                                                }
+                                                genomeList={
+                                                    this.state.genomeList
+                                                }
+                                                maxNum={this.state.maxNum}
+                                                onMaxNumChange={(newMaxNum) =>
+                                                    this.setState({
+                                                        maxNum: int(newMaxNum),
+                                                    })
+                                                }
+                                                onSubmit={() =>
+                                                    this.updateLassos()
+                                                }
+                                            />
+                                            <CardHolder
+                                                lassos={this.state.lassos}
+                                                favoriteLasso={(newLasso) =>
+                                                    this.favoriteLassos([
+                                                        ...this.state.favorites,
+                                                        newLasso,
+                                                    ])
+                                                }
+                                                favorites={this.state.favorites}
+                                                unfavoriteLasso={(oldLasso) => {
+                                                    const oldFavorites = this
+                                                        .state.favorites;
+                                                    let removeInd = -1;
+                                                    for (
+                                                        let i = 0;
+                                                        i < oldFavorites.length;
+                                                        i++
+                                                    ) {
+                                                        if (
+                                                            lassoEquality(
+                                                                oldLasso,
+                                                                oldFavorites[i]
+                                                            )
+                                                        )
+                                                            removeInd = i;
+                                                    }
+                                                    const newFavorites = [
+                                                        ...oldFavorites.slice(
+                                                            0,
+                                                            removeInd
+                                                        ),
+                                                        ...oldFavorites.slice(
+                                                            removeInd + 1,
+                                                            oldFavorites.length
+                                                        ),
+                                                    ];
+                                                    this.favoriteLassos(
+                                                        newFavorites
+                                                    );
+                                                }}
+                                                updateModal={(newContent) => {
+                                                    this.setState({
+                                                        modalContent: {
+                                                            title:
+                                                                newContent.title,
+                                                            body:
+                                                                newContent.body,
+                                                        },
+                                                    });
+                                                }}
+                                            />
+                                        </div>
+                                    ),
+                                    1: (
+                                        <div>
+                                            <button
+                                                onClick={() =>
+                                                    this.exportToCsv()
+                                                }
+                                            >
+                                                Export to CSV
+                                            </button>
+                                            <input
+                                                type="file"
+                                                onChange={(event) =>
+                                                    this.importFromCsv(event)
+                                                }
+                                                ref={this.fileInput}
+                                            />
+                                            <br />
+                                            <CardHolder
+                                                lassos={this.state.favorites}
+                                                favorites={this.state.favorites}
+                                                unfavoriteLasso={(oldLasso) => {
+                                                    const oldFavorites = this
+                                                        .state.favorites;
+                                                    let removeInd = -1;
+                                                    for (
+                                                        let i = 0;
+                                                        i < oldFavorites.length;
+                                                        i++
+                                                    ) {
+                                                        if (
+                                                            lassoEquality(
+                                                                oldLasso,
+                                                                oldFavorites[i]
+                                                            )
+                                                        )
+                                                            removeInd = i;
+                                                    }
+                                                    const newFavorites = [
+                                                        ...oldFavorites.slice(
+                                                            0,
+                                                            removeInd
+                                                        ),
+                                                        ...oldFavorites.slice(
+                                                            removeInd + 1,
+                                                            oldFavorites.length
+                                                        ),
+                                                    ];
+                                                    this.favoriteLassos(
+                                                        newFavorites
+                                                    );
+                                                }}
+                                                updateModal={(newContent) => {
+                                                    this.setState({
+                                                        modalContent: {
+                                                            title:
+                                                                newContent.title,
+                                                            body:
+                                                                newContent.body,
+                                                        },
+                                                    });
+                                                }}
+                                            />
+                                        </div>
+                                    ),
+                                }[this.state.tabSelection]
+                            }
                         </div>
                     );
                 }

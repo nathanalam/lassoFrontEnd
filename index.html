@@ -61,6 +61,127 @@
                 l1.start === l2.start &&
                 l1.end === l2.end;
 
+            const PrecursorDetails = (props) => {
+                const lasso = props.lasso;
+                function sequenceToVisual(sequence) {
+                    const combinations = [];
+
+                    const regex = /T[A-Z]{7,9}[DE]/gm;
+                    let m;
+
+                    while ((m = regex.exec(sequence)) !== null) {
+                        // This is necessary to avoid infinite loops with zero-width matches
+                        if (m.index === regex.lastIndex) {
+                            regex.lastIndex++;
+                        }
+
+                        // The result can be accessed through the `m`-variable.
+                        m.forEach((match, groupIndex) => {
+                            combinations.push({
+                                leader: sequence.substring(
+                                    0,
+                                    sequence.indexOf(match) + 2
+                                ),
+                                core: match.substring(2),
+                                tail: sequence.substring(
+                                    sequence.indexOf(match) + match.length
+                                ),
+                            });
+                        });
+                    }
+                    return combinations;
+                }
+                return (
+                    <div>
+                        <a
+                            href={
+                                "https://www.ncbi.nlm.nih.gov/nuccore/" +
+                                lasso.accession +
+                                "?report=genbank&from=" +
+                                lasso.start +
+                                "&to=" +
+                                lasso.end
+                            }
+                            className="card-title"
+                        >
+                            {lasso.accession} ({lasso.start}..{lasso.end})
+                        </a>
+                        <br />
+                        {sequenceToVisual(lasso.sequence).map(
+                            (combination, ind) => (
+                                <p key={ind}>
+                                    <span style={{ color: "red" }}>
+                                        {combination.leader}
+                                    </span>
+                                    <span style={{ color: "green" }}>
+                                        {combination.core}
+                                    </span>
+                                    <span style={{ color: "blue" }}>
+                                        {combination.tail}
+                                    </span>
+                                </p>
+                            )
+                        )}
+                        Rank: {lasso.rank}
+                        <br />
+                        Secondary Rank: {lasso.secondaryRank}
+                        <br />
+                        Genome: {lasso.genome}
+                        <br />
+                        Range: {lasso.start}-{lasso.end}
+                    </div>
+                );
+            };
+
+            const AccessoryDetails = (props) => {
+                const accessory = props.accessory;
+                return <div></div>;
+            };
+
+            const Modal = (props) => {
+                return (
+                    <div
+                        className="modal fade"
+                        id="exampleModal"
+                        tabIndex="-1"
+                        role="dialog"
+                        aria-labelledby="exampleModalLabel"
+                        aria-hidden="true"
+                    >
+                        <div className="modal-dialog modal-lg" role="document">
+                            <div className="modal-content">
+                                <div className="modal-header">
+                                    <h5
+                                        className="modal-title"
+                                        id="exampleModalLabel"
+                                    >
+                                        {props.title}
+                                    </h5>
+                                    <button
+                                        type="button"
+                                        className="close"
+                                        data-dismiss="modal"
+                                        aria-label="Close"
+                                    >
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div className="modal-body">{props.body}</div>
+                                <div className="modal-footer">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        data-dismiss="modal"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
             const LassoTrack = (props) => {
                 const lasso = props.lasso;
 
@@ -127,51 +248,126 @@
 
                 const d3Container = React.useRef(null);
                 const width = 800;
-                const height = 400;
+                const height = 300;
 
                 const normalize = (xpoint) =>
-                    width * ((xpoint - minRange) / (maxRange - minRange));
+                    50 +
+                    (width - 50) *
+                        ((xpoint - minRange) / (maxRange - minRange));
                 const motifColors = ["green", "blue", "yellow", "orange"];
+                const readingFrameToHeight = (rf) =>
+                    [0, 0, 100, 200][Math.abs(rf)];
                 React.useEffect(() => {
                     if (d3Container.current) {
                         const svg = d3.select(d3Container.current);
+                        svg.selectAll("*").remove();
+                        const appendRFlabel = (label) => {
+                            svg.append("text")
+                                .attr("x", 0)
+                                .attr("y", readingFrameToHeight(label) + 20)
+                                .attr("dy", ".35em")
+                                .text(label.toString());
+                        };
+                        appendRFlabel(1);
+                        appendRFlabel(2);
+                        appendRFlabel(3);
 
-                        svg.append("rect")
-                            .attr("x", normalize(lasso.start))
-                            .attr("y", 200)
+                        const chevron = (x, y, width, height, direction) => {
+                            const offset = width > 20 ? 20 : width * 0.8;
+                            if (direction > 0)
+                                return `${x},${y} ${x + width - offset},${y} ${
+                                    x + width
+                                },${y + height / 2} ${x + width - offset},${
+                                    y + height
+                                } ${x},${y + height}`;
+                            return `${x + offset},${y} ${x + width},${y} ${
+                                x + width
+                            },${y + height} ${x + offset},${y + height} ${x},${
+                                y + height / 2
+                            }`;
+                        };
+
+                        svg.append("polygon")
                             .attr(
-                                "width",
-                                normalize(lasso.end) - normalize(lasso.start)
+                                "points",
+                                chevron(
+                                    normalize(lasso.start),
+                                    readingFrameToHeight(lasso.orf),
+                                    normalize(lasso.end) -
+                                        normalize(lasso.start),
+                                    40,
+                                    lasso.orf
+                                )
                             )
-                            .attr("height", 40)
                             .attr("stroke", "black")
                             .attr("fill", "red")
                             .on("click", function () {
-                                console.log(lasso.sequence);
-                            });
+                                props.updateModal({
+                                    title: "Precursor Details",
+                                    body: (
+                                        <div>
+                                            <PrecursorDetails lasso={lasso} />
+                                            <NCBIFrame
+                                                start={lasso.start}
+                                                end={lasso.end}
+                                                accession={lasso.accession}
+                                            />
+                                        </div>
+                                    ),
+                                });
+                            })
+                            .attr("data-toggle", "modal")
+                            .attr("data-target", "#exampleModal")
+                            .style("cursor", "pointer")
+                            .append("title")
+                            .text(`Precursor A`);
 
                         for (let j = 0; j < closestOrfs.length; j++) {
                             const closestI = closestOrfs[j];
-                            svg.append("rect")
-                                .attr("x", normalize(closestI.start))
-                                .attr("y", 200)
+                            svg.append("polygon")
                                 .attr(
-                                    "width",
-                                    normalize(closestI.end) -
-                                        normalize(closestI.start)
+                                    "points",
+                                    chevron(
+                                        normalize(closestI.start),
+                                        readingFrameToHeight(
+                                            closestI.readingFrame
+                                        ),
+                                        normalize(closestI.end) -
+                                            normalize(closestI.start),
+                                        40,
+                                        closestI.readingFrame
+                                    )
                                 )
-                                .attr("height", 40)
                                 .attr("stroke", "black")
                                 .attr(
                                     "fill",
                                     motifColors[j % motifColors.length]
                                 )
                                 .on("click", function () {
-                                    console.log(closestI);
-                                });
+                                    props.updateModal({
+                                        title: "Accessory Protein Details",
+                                        body: (
+                                            <div>
+                                                <AccessoryDetails
+                                                    accessory={closestI}
+                                                />
+                                                <NCBIFrame
+                                                    start={closestI.start}
+                                                    end={closestI.end}
+                                                    accession={lasso.accession}
+                                                />
+                                            </div>
+                                        ),
+                                    });
+                                })
+                                .attr("data-toggle", "modal")
+                                .attr("data-target", "#exampleModal")
+                                .style("cursor", "pointer")
+                                .append("title")
+                                .text(closestI.motifType);
                         }
                     }
-                }, [d3Container.current]);
+                }, [d3Container.current, lasso]);
 
                 return (
                     <svg
@@ -237,11 +433,12 @@
                 return (
                     <div
                         className="card"
-                        style={{ maxWidth: "80%", margin: "0 auto" }}
+                        style={{ maxWidth: "80%", margin: "4em auto" }}
                     >
                         <div
                             onClick={() => setCollapsed(!collapsed)}
                             className="card-header"
+                            style={{ cursor: "pointer" }}
                         >
                             {lasso.name}
                         </div>
@@ -268,36 +465,13 @@
                             )}
 
                             <br />
-                            <a
-                                href={
-                                    "https://www.ncbi.nlm.nih.gov/nuccore/" +
-                                    lasso.accession +
-                                    "?report=genbank&from=" +
-                                    lasso.start +
-                                    "&to=" +
-                                    lasso.end
-                                }
-                                className="card-title"
-                            >
-                                {lasso.accession} ({lasso.start}..{lasso.end})
-                            </a>
-                            <p className="card-text">
-                                Rank: {lasso.rank}
-                                <br />
-                                Genome: {lasso.genome}
-                                <br />
-                                Range: {lasso.start}-{lasso.end}
-                                <br />
-                                Reading lasso: {lasso.orf}
-                            </p>
-                            <NCBIFrame
-                                start={lasso.start}
-                                end={lasso.end}
-                                accession={lasso.accession}
+                            <h3 className="card-text">{lasso.sequence}</h3>
+                            <br />
+                            <br />
+                            <LassoTrack
+                                lasso={lasso}
+                                updateModal={props.updateModal}
                             />
-                            <br />
-                            <br />
-                            <LassoTrack lasso={lasso} />
                         </div>
                     </div>
                 );
@@ -316,6 +490,7 @@
                             favorite={props.favoriteLasso}
                             unfavorite={props.unfavoriteLasso}
                             isFavorite={isFavorite}
+                            updateModal={props.updateModal}
                         />
                     );
                 });
@@ -415,6 +590,10 @@
                         lassos: [],
                         tabSelection: 0,
                         favorites: [],
+                        modalContent: {
+                            title: "Details",
+                            body: "...",
+                        },
                     };
                 }
 
@@ -446,7 +625,7 @@
                     };
                     db.collection("peptides")
                         .where("genome", "==", this.state.genome)
-                        .orderBy("rank", "desc")
+                        .orderBy("secondaryRank", "desc")
                         .limit(this.state.maxNum)
                         .get()
                         .then(function (querySnapshot) {
@@ -487,6 +666,10 @@
                 render() {
                     return (
                         <div>
+                            <Modal
+                                title={this.state.modalContent.title}
+                                body={this.state.modalContent.body}
+                            />
                             <ul className="nav nav-tabs">
                                 <li className="nav-item">
                                     <a
@@ -586,6 +769,16 @@
                                                         newFavorites
                                                     );
                                                 }}
+                                                updateModal={(newContent) => {
+                                                    this.setState({
+                                                        modalContent: {
+                                                            title:
+                                                                newContent.title,
+                                                            body:
+                                                                newContent.body,
+                                                        },
+                                                    });
+                                                }}
                                             />
                                         </div>
                                     ),
@@ -632,6 +825,16 @@
                                                     this.favoriteLassos(
                                                         newFavorites
                                                     );
+                                                }}
+                                                updateModal={(newContent) => {
+                                                    this.setState({
+                                                        modalContent: {
+                                                            title:
+                                                                newContent.title,
+                                                            body:
+                                                                newContent.body,
+                                                        },
+                                                    });
                                                 }}
                                             />
                                         </div>

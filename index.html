@@ -596,9 +596,9 @@
             };
 
             const CardHolder = (props) => {
-                return props.lassos.map((lasso, ind) => {
+                return (props.lassos || []).map((lasso, ind) => {
                     let isFavorite = false;
-                    props.favorites.forEach((favorite) => {
+                    (props.favorites || []).forEach((favorite) => {
                         if (lassoEquality(lasso, favorite)) isFavorite = true;
                     });
                     return (
@@ -760,13 +760,13 @@
                 favoriteLassos(newFavorites) {
                     const updateFavoriteState = (val) => {
                         this.setState({
-                            favorites: newFavorites,
+                            favorites: newFavorites || [],
                         });
                     };
-                    updateFavoriteState(newFavorites);
+                    updateFavoriteState(newFavorites || []);
                     window.localStorage.setItem(
                         "favorites",
-                        JSON.stringify(newFavorites)
+                        JSON.stringify(newFavorites || [])
                     );
                 }
 

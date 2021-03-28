@@ -60,6 +60,20 @@
                 l1.genome === l2.genome &&
                 l1.start === l2.start &&
                 l1.end === l2.end;
+            const lassoFields = [
+                "name",
+                "sequence",
+                "secondaryRank",
+                "orf",
+                "runName",
+                "accession",
+                "genome",
+                "overallLength",
+                "rank",
+                "start",
+                "end",
+                "closestOrfs",
+            ];
 
             const PrecursorDetails = (props) => {
                 const lasso = props.lasso;
@@ -135,7 +149,91 @@
 
             const AccessoryDetails = (props) => {
                 const accessory = props.accessory;
-                return <div></div>;
+
+                const d3Container = React.useRef(null);
+                const [width, height] = [600, 100];
+
+                const normalize = (xpoint) =>
+                    width *
+                    ((xpoint - accessory.start) /
+                        (accessory.end - accessory.start));
+                React.useEffect(() => {
+                    if (d3Container.current) {
+                        const svg = d3.select(d3Container.current);
+                        svg.selectAll("*").remove();
+
+                        svg.append("rect")
+                            .attr("x", normalize(accessory.start))
+                            .attr("y", 0)
+                            .attr(
+                                "width",
+                                normalize(accessory.end) -
+                                    normalize(accessory.start)
+                            )
+                            .attr("height", 40)
+                            .attr("stroke", "black")
+                            .attr("fill", "gray");
+
+                        accessory.motifs.forEach((motif) => {
+                            svg.append("rect")
+                                .attr("x", normalize(motif.start * 3))
+                                .attr("y", 40)
+                                .attr(
+                                    "width",
+                                    normalize(motif.end * 3) -
+                                        normalize(motif.start * 3)
+                                )
+                                .attr("height", 40)
+                                .attr("stroke", "black")
+                                .attr("fill", "blue")
+                                .style("opacity", 1 - motif["p-value"])
+                                .append("title")
+                                .text(
+                                    `p-value: ${motif["p-value"]}\nmotif: ${motif.motif}`
+                                );
+                        });
+                    }
+                }, [d3Container.current, accessory]);
+
+                return (
+                    <div>
+                        <svg
+                            className="d3-component"
+                            width={width}
+                            height={height}
+                            ref={d3Container}
+                        />
+                        <p>
+                            Motif fraction: {(accessory.count * 100).toFixed(2)}
+                            %
+                        </p>
+                        <p>Motif file: {accessory.motifType}</p>
+                        <h4>Sequence</h4>
+                        <div
+                            className="card card-body bg-light"
+                            style={{
+                                height: 400,
+                                width: "80%",
+                                overflowWrap: "break-word",
+                                overflowY: "scroll",
+                            }}
+                        >
+                            {accessory.sequence}
+                        </div>
+                        <h4>Motif Details</h4>
+                        <div
+                            className="card card-body bg-light"
+                            style={{
+                                height: 400,
+                                width: "80%",
+                                overflowWrap: "break-word",
+                                overflowY: "scroll",
+                            }}
+                        >
+                            {JSON.stringify(accessory.motifs)}
+                        </div>
+                    </div>
+                );
             };
 
             const Modal = (props) => {
@@ -348,13 +446,13 @@
                                         title: "Accessory Protein Details",
                                         body: (
                                             <div>
-                                                <AccessoryDetails
-                                                    accessory={closestI}
-                                                />
                                                 <NCBIFrame
                                                     start={closestI.start}
                                                     end={closestI.end}
                                                     accession={lasso.accession}
+                                                />
+                                                <AccessoryDetails
+                                                    accessory={closestI}
                                                 />
                                             </div>
                                         ),
@@ -440,7 +538,44 @@
                             className="card-header"
                             style={{ cursor: "pointer" }}
                         >
-                            {lasso.name}
+                            <div
+                                style={{
+                                    display: "inline-block",
+                                    width: "50%",
+                                }}
+                            >
+                                {collapsed ? "▼" : "▲"} {lasso.name}
+                            </div>
+                            <div
+                                style={{
+                                    display: "inline-block",
+                                    width: "50%",
+                                    textAlign: "right",
+                                }}
+                            >
+                                Rank: {lasso.rank.toFixed(3)} - Secondary Rank:{" "}
+                                {lasso.secondaryRank.toFixed(5)}
+                                {}{" "}
+                                {props.isFavorite ? (
+                                    <button
+                                        className={"btn btn-light"}
+                                        onClick={() =>
+                                            props.unfavorite(props.lasso)
+                                        }
+                                    >
+                                        ★
+                                    </button>
+                                ) : (
+                                    <button
+                                        className={"btn btn-light"}
+                                        onClick={() =>
+                                            props.favorite(props.lasso)
+                                        }
+                                    >
+                                        ☆
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         <div
                             className={
@@ -448,23 +583,6 @@
                                 (collapsed ? "" : ".show")
                             }
                         >
-                            {props.isFavorite ? (
-                                <button
-                                    onClick={() =>
-                                        props.unfavorite(props.lasso)
-                                    }
-                                >
-                                    Unfavorite
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={() => props.favorite(props.lasso)}
-                                >
-                                    Favorite
-                                </button>
-                            )}
-
-                            <br />
                             <h3 className="card-text">{lasso.sequence}</h3>
                             <br />
                             <br />
@@ -595,6 +713,7 @@
                             body: "...",
                         },
                     };
+                    this.fileInput = React.createRef();
                 }
 
                 componentDidMount() {
@@ -654,14 +773,68 @@
                 exportToCsv() {
                     let csvContent =
                         "data:text/csv;charset=utf-8," +
-                        Object.keys(this.state.favorites[0]).join(",") +
+                        lassoFields.join(",") +
                         "\n" +
                         this.state.favorites
-                            .map((e) => Object.values(e).join(","))
+                            .map((lasso) =>
+                                lassoFields
+                                    .map((field) => lasso[field])
+                                    .join(",")
+                            )
                             .join("\n");
                     const encodedUri = encodeURI(csvContent);
                     window.open(encodedUri);
                 }
+                importFromCsv = async (event) => {
+                    event.preventDefault();
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        const text = e.target.result;
+                        const lines = text.split("\n");
+                        const readLassos = lines.slice(1);
+                        this.favoriteLassos(
+                            readLassos.map((lassoline) => {
+                                let lassobuffer = "" + lassoline;
+                                const newLasso = {};
+                                lassoFields
+                                    .slice(0, lassoFields.length - 1)
+                                    .forEach((field) => {
+                                        let val = lassobuffer.substring(
+                                            0,
+                                            lassobuffer.indexOf(",")
+                                        );
+                                        if (
+                                            [
+                                                "rank",
+                                                "secondaryRank",
+                                                "orf",
+                                                "overallLength",
+                                                "start",
+                                                "end",
+                                            ].includes(field)
+                                        )
+                                            val = parseFloat(val);
+                                        if (
+                                            [
+                                                "orf",
+                                                "overallLength",
+                                                "start",
+                                                "end",
+                                            ].includes(field)
+                                        )
+                                            val = parseInt(val);
+                                        newLasso[field] = val;
+                                        lassobuffer = lassobuffer.substring(
+                                            lassobuffer.indexOf(",") + 1
+                                        );
+                                    });
+                                newLasso["closestOrfs"] = lassobuffer;
+                                return newLasso;
+                            })
+                        );
+                    };
+                    reader.readAsText(event.target.files[0]);
+                };
 
                 render() {
                     return (
@@ -791,6 +964,13 @@
                                             >
                                                 Export to CSV
                                             </button>
+                                            <input
+                                                type="file"
+                                                onChange={(event) =>
+                                                    this.importFromCsv(event)
+                                                }
+                                                ref={this.fileInput}
+                                            />
                                             <br />
                                             <CardHolder
                                                 lassos={this.state.favorites}

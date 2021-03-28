@@ -853,10 +853,12 @@
                                                 : "")
                                         }
                                         aria-current="page"
-                                        href="#"
                                         onClick={() =>
                                             this.setState({ tabSelection: 0 })
                                         }
+                                        style={{
+                                            cursor: "pointer"
+                                        }}
                                     >
                                         Search
                                     </a>
@@ -869,10 +871,12 @@
                                                 ? " active"
                                                 : "")
                                         }
-                                        href="#"
                                         onClick={() =>
                                             this.setState({ tabSelection: 1 })
                                         }
+                                        style={{
+                                            cursor: "pointer"
+                                        }}
                                     >
                                         Favorites
                                     </a>

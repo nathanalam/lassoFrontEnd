@@ -175,13 +175,21 @@
                             .attr("fill", "gray");
 
                         accessory.motifs.forEach((motif) => {
+                            let [motifStart, motifEnd] = [0, 0]
+                            if(accessory.readingFrame < 0) {
+                                motifEnd = normalize(accessory.overallLength - (motif.start * 3));
+                                motifStart = normalize(accessory.overallLength - (motif.end * 3));
+                            } else {
+                                motifStart = normalize(motif.start * 3);
+                                motifEnd = normalize(motif.end * 3);
+                            }
                             svg.append("rect")
-                                .attr("x", normalize(motif.start * 3))
+                                .attr("x", motifStart)
                                 .attr("y", 40)
                                 .attr(
                                     "width",
-                                    normalize(motif.end * 3) -
-                                        normalize(motif.start * 3)
+                                    motifEnd -
+                                        motifStart
                                 )
                                 .attr("height", 40)
                                 .attr("stroke", "black")
@@ -452,7 +460,7 @@
                                                     accession={lasso.accession}
                                                 />
                                                 <AccessoryDetails
-                                                    accessory={closestI}
+                                                    accessory={{...closestI, overallLength: lasso.overallLength}}
                                                 />
                                             </div>
                                         ),

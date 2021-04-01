@@ -1,3 +1,4 @@
+
 <html>
     <head>
         <title>Lasso Miner</title>
@@ -576,8 +577,9 @@
                                 ) : (
                                     <button
                                         className={"btn btn-light"}
-                                        onClick={() =>
+                                        onClick={() => {
                                             props.favorite(props.lasso)
+                                        }
                                         }
                                     >
                                         ☆
@@ -921,7 +923,7 @@
                                                 lassos={this.state.lassos}
                                                 favoriteLasso={(newLasso) =>
                                                     this.favoriteLassos([
-                                                        ...this.state.favorites,
+                                                        ...(this.state.favorites || []),
                                                         newLasso,
                                                     ])
                                                 }
